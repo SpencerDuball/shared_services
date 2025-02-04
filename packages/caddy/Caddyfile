@@ -1,0 +1,15 @@
+http://localhost:2019 {
+    respond /healthcheck "OK" 200
+}
+
+http://localhost:9000, http://192.168.4.75:9000 {
+    reverse_proxy minio1:9000 minio2:9000 minio3:9000 minio4:9000 {
+        lb_policy least_conn
+    }
+}
+
+http://localhost:9001, http://192.168.4.75:9001 {
+    reverse_proxy minio1:9001 minio2:9001 minio3:9001 minio4:9001 {
+        lb_policy least_conn
+    }
+}

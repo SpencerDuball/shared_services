@@ -1,0 +1,215 @@
+# Name: shared_services
+
+services:
+  # Setup Distributed Minio
+  minio1:
+    hostname: minio1
+    image: minio/minio:latest
+    volumes:
+      - minio1_data:/data
+    networks:
+      - shared_services
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      placement:
+        constraints:
+          # Use the node id from the swarm cluster via `docker node ls`
+          - node.id == omgb8iqu6i826sf4xiqc5xi1f
+    # This setup uses 4 distinct minio servers, with a single drive each. Note that
+    # minio API is exposed on port ":9000" by default, and we have setup port ":9001"
+    # to be the web console port.
+    command: server http://minio{1...4}/data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER_FILE=/run/secrets/minio_root_user
+      - MINIO_ROOT_PASSWORD_FILE=/run/secrets/minio_root_password
+      - MINIO_STORAGE_CLASS_STANDARD=EC:2 # Can withstand up to 2 drives failing.
+    secrets:
+      - minio_root_user
+      - minio_root_password
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+  minio2:
+    hostname: minio2
+    image: minio/minio:latest
+    volumes:
+      - minio2_data:/data
+    networks:
+      - shared_services
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      placement:
+        constraints:
+          # Use the node id from the swarm cluster via `docker node ls`
+          - node.id == yml174okin9b6czgu0ignapjd
+    # This setup uses 4 distinct minio servers, with a single drive each. Note that
+    # minio API is exposed on port ":9000" by default, and we have setup port ":9001"
+    # to be the web console port.
+    command: server http://minio{1...4}/data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER_FILE=/run/secrets/minio_root_user
+      - MINIO_ROOT_PASSWORD_FILE=/run/secrets/minio_root_password
+      - MINIO_STORAGE_CLASS_STANDARD=EC:2 # Can withstand up to 2 drives failing.
+    secrets:
+      - minio_root_user
+      - minio_root_password
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+  minio3:
+    hostname: minio3
+    image: minio/minio:latest
+    volumes:
+      - minio3_data:/data
+    networks:
+      - shared_services
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      placement:
+        constraints:
+          # Use the node id from the swarm cluster via `docker node ls`
+          - node.id == epunrut5bznn7agd65gyyfjy1
+    # This setup uses 4 distinct minio servers, with a single drive each. Note that
+    # minio API is exposed on port ":9000" by default, and we have setup port ":9001"
+    # to be the web console port.
+    command: server http://minio{1...4}/data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER_FILE=/run/secrets/minio_root_user
+      - MINIO_ROOT_PASSWORD_FILE=/run/secrets/minio_root_password
+      - MINIO_STORAGE_CLASS_STANDARD=EC:2 # Can withstand up to 2 drives failing.
+    secrets:
+      - minio_root_user
+      - minio_root_password
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+  minio4:
+    hostname: minio4
+    image: minio/minio:latest
+    volumes:
+      - minio4_data:/data
+    networks:
+      - shared_services
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      placement:
+        constraints:
+          # Use the node id from the swarm cluster via `docker node ls`
+          - node.id == ox8r7ehw8p6dkw9w710sq35pd
+    # This setup uses 4 distinct minio servers, with a single drive each. Note that
+    # minio API is exposed on port ":9000" by default, and we have setup port ":9001"
+    # to be the web console port.
+    command: server http://minio{1...4}/data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER_FILE=/run/secrets/minio_root_user
+      - MINIO_ROOT_PASSWORD_FILE=/run/secrets/minio_root_password
+      - MINIO_STORAGE_CLASS_STANDARD=EC:2 # Can withstand up to 2 drives failing.
+    secrets:
+      - minio_root_user
+      - minio_root_password
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # Setup Reverse Proxy
+  caddy:
+    image: caddy:latest
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    configs:
+      - source: caddyfile
+        target: /etc/caddy/Caddyfile
+    ports:
+      # reverse proxy for internal services
+      - 9000:9000 # minio
+      - 9001:9001 # minio web console
+      # allow for web traffic
+      - 80:80
+      - 443:443
+      - 443:443/udp
+    networks:
+      - shared_services
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      placement:
+        constraints:
+          # Use the node id from the swarm cluster via `docker node ls`
+          - node.id == omgb8iqu6i826sf4xiqc5xi1f
+    healthcheck:
+      test:
+        ["CMD", "wget", "--spider", "-q", "http://localhost:2019/healthcheck"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+volumes:
+  minio1_data:
+    driver: local
+  minio2_data:
+    driver: local
+  minio3_data:
+    driver: local
+  minio4_data:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local
+
+configs:
+  caddyfile:
+    external: true
+    name: "shared_services.caddyfile.${CADDYFILE_VER}"
+
+networks:
+  shared_services:
+    driver: overlay
+    driver_opts:
+      encrypted: "true"
+
+secrets:
+  minio_root_user:
+    external: true
+    name: "shared_services.minio_root_user.${MINIO_ROOT_VER}"
+  minio_root_password:
+    external: true
+    name: "shared_services.minio_root_password.${MINIO_ROOT_VER}"
