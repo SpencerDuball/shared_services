@@ -56,3 +56,5 @@ CADDY_ROTATION=v1 MINIO_ROTATION=v4 docker stack deploy -c compose.prod.yaml sha
 - [Docker Swarm Docs](https://docs.docker.com/engine/swarm/configs/#example-rotate-a-config)
 
 [Cloudflare & Caddyserver TLS](https://samjmck.com/en/blog/using-caddy-with-cloudflare/)
+
+- Document how each of these configurations were created in the docs, how each of the environment variables were chosen and how to re-set this back up (or how to set this up for someone coming in from scratch).

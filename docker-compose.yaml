@@ -1,8 +1,22 @@
 # Name: shared_services
 
 services:
-  # Setup Distributed Minio
+  # ------------------------------------------------------------------------------------
+  # Setup Object Storage
+  # ------------------------------------------------------------------------------------
+  # Minio is an S3 compatible object store that can be used by any application in any
+  # stack. This setup creates a Minio cluster spread across 4 nodes, each with a single
+  # drive, and this placement is enforced via the node ID. Data is erasure coded such
+  # that 2 drives can go down and all data can still be recovered.
+  #
+  # Each of the 4 minio instances are identical except for their hostname and placement
+  # constraints.
+  # ------------------------------------------------------------------------------------
   minio1:
+    # This is required. Swarm has two deployment modes: global or replicated. Global will
+    # be deployed on _every_ node, using "replicas: 1" is the only way to state that this
+    # service should be a singleton, however the hostname for a service in docker swarm
+    # will be "container_name.task_slot" = "minio1.1".
     hostname: minio1
     image: minio/minio:latest
     volumes:
@@ -19,10 +33,17 @@ services:
         constraints:
           # Use the node id from the swarm cluster via `docker node ls`
           - node.id == omgb8iqu6i826sf4xiqc5xi1f
-    # This setup uses 4 distinct minio servers, with a single drive each. Note that
-    # minio API is exposed on port ":9000" by default, and we have setup port ":9001"
-    # to be the web console port.
-    command: server http://minio{1...4}/data --console-address ":9001"
+    # This part is extremely important, specifying the path to the servers using expansion
+    # syntax is used for other minio servers to discover eachother for distributed mode.
+    # We are stating that there are 4 minio servers which can be reached at:
+    # - ["http://minio1", "http://minio2", "http://minio3", "http://minio4"]
+    # We are also stating that there is only 1 drive for each of these servers:
+    # - "http://minio1/data" where "/data" indicates the drive. If we had more drives for
+    #   the servers we could use expansion syntax again: "http://minio{1...4}/data{1...2}"
+    #
+    # See the docs for more info:
+    # https://min.io/docs/minio/linux/operations/install-deploy-manage/expand-minio-deployment.html#sequential-hostnames
+    command: server http://minio{1...4}/data
     environment:
       - MINIO_ROOT_USER_FILE=/run/secrets/minio_root_user
       - MINIO_ROOT_PASSWORD_FILE=/run/secrets/minio_root_password
@@ -51,17 +72,13 @@ services:
         max_attempts: 5
       placement:
         constraints:
-          # Use the node id from the swarm cluster via `docker node ls`
           - node.id == yml174okin9b6czgu0ignapjd
-    # This setup uses 4 distinct minio servers, with a single drive each. Note that
-    # minio API is exposed on port ":9000" by default, and we have setup port ":9001"
-    # to be the web console port.
     command: server http://minio{1...4}/data --console-address ":9001"
     environment:
       - MINIO_ROOT_USER_FILE=/run/secrets/minio_root_user
       - MINIO_ROOT_PASSWORD_FILE=/run/secrets/minio_root_password
-      - MINIO_STORAGE_CLASS_STANDARD=EC:2 # Can withstand up to 2 drives failing.
-      - MINIO_BROWSER=off # disable embedded web portal
+      - MINIO_STORAGE_CLASS_STANDARD=EC:2
+      - MINIO_BROWSER=off
     secrets:
       - minio_root_user
       - minio_root_password
@@ -85,17 +102,13 @@ services:
         max_attempts: 5
       placement:
         constraints:
-          # Use the node id from the swarm cluster via `docker node ls`
           - node.id == epunrut5bznn7agd65gyyfjy1
-    # This setup uses 4 distinct minio servers, with a single drive each. Note that
-    # minio API is exposed on port ":9000" by default, and we have setup port ":9001"
-    # to be the web console port.
     command: server http://minio{1...4}/data --console-address ":9001"
     environment:
       - MINIO_ROOT_USER_FILE=/run/secrets/minio_root_user
       - MINIO_ROOT_PASSWORD_FILE=/run/secrets/minio_root_password
-      - MINIO_STORAGE_CLASS_STANDARD=EC:2 # Can withstand up to 2 drives failing.
-      - MINIO_BROWSER=off # disable embedded web portal
+      - MINIO_STORAGE_CLASS_STANDARD=EC:2
+      - MINIO_BROWSER=off
     secrets:
       - minio_root_user
       - minio_root_password
@@ -119,17 +132,13 @@ services:
         max_attempts: 5
       placement:
         constraints:
-          # Use the node id from the swarm cluster via `docker node ls`
           - node.id == ox8r7ehw8p6dkw9w710sq35pd
-    # This setup uses 4 distinct minio servers, with a single drive each. Note that
-    # minio API is exposed on port ":9000" by default, and we have setup port ":9001"
-    # to be the web console port.
     command: server http://minio{1...4}/data --console-address ":9001"
     environment:
       - MINIO_ROOT_USER_FILE=/run/secrets/minio_root_user
       - MINIO_ROOT_PASSWORD_FILE=/run/secrets/minio_root_password
-      - MINIO_STORAGE_CLASS_STANDARD=EC:2 # Can withstand up to 2 drives failing.
-      - MINIO_BROWSER=off # disable embedded web portal
+      - MINIO_STORAGE_CLASS_STANDARD=EC:2
+      - MINIO_BROWSER=off
     secrets:
       - minio_root_user
       - minio_root_password
@@ -139,7 +148,42 @@ services:
       timeout: 20s
       retries: 3
 
+  # ------------------------------------------------------------------------------------
+  # Setup Observability Tools
+  # ------------------------------------------------------------------------------------
+  # The Grafana Stack is a FOSS observability stack that can be self hosted. There are
+  # really 3 main pieces that we need to setup:
+  # - Loki  - our logs database and query engine
+  # - Mimir - our metrics database and query engine
+  # - Alloy - our agent to collect both logs and metrics, sending to Loki & Mimir
+  #
+  # Grafana is such a gem that each of their services typically support up to 3 different
+  # deployment modes: monolithic, simple-scalable, microservices. The solution chosen
+  # here is the simple-scalable deployment, monolithic is not recommended for production
+  # as scaling is wasteful (don't need whole app duplicated to increase read/write
+  # throughput for example).
+  #
+  # Loki will be deployed using simple-scalable-deployment where we split out the read,
+  # write, and backend. Each of these pieces can be scaled independently by just changing
+  # the number of replicas in the compose file.
+  #
+  # Mimir will be deployed using read-write deployment (SSD) where we split out the read,
+  # write, and backend. Each of these pieces can be scaled independently by just changing
+  # the number of replicas in the compose file.
+  #
+  # Alloy will be deployed in Docker Swarm "global" mode. This means that there will be
+  # one alloy instance running on each node. This single instance will collect all logs
+  # and metrics for the node and send the data to the appropriate sink (loki or mimir).
+  # ------------------------------------------------------------------------------------
+
+  # ------------------------------------------------------------------------------------
   # Setup Reverse Proxy
+  # ------------------------------------------------------------------------------------
+  # This caddyserver is used as a reverse proxy & load balancer for:
+  # - Minio   - all traffic should go through caddyserver for minio
+  # - Apps    - publically exposed web apps are served here, these webapps are created
+  #             in different stacks deployed to this swarm
+  # ------------------------------------------------------------------------------------
   caddy:
     image: caddy:latest
     volumes:
