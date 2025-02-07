@@ -54,3 +54,5 @@ CADDY_ROTATION=v1 MINIO_ROTATION=v4 docker stack deploy -c compose.prod.yaml sha
 - [Rotating Your Docker Secrets Can Be Easy, If You Plan For It](https://anthonymineo.com/rotating-your-docker-secrets-can-be-easy-if-you-plan-for-it/)
 - [Compose Configs Spec](https://github.com/compose-spec/compose-spec/blob/main/08-configs.md)
 - [Docker Swarm Docs](https://docs.docker.com/engine/swarm/configs/#example-rotate-a-config)
+
+[Cloudflare & Caddyserver TLS](https://samjmck.com/en/blog/using-caddy-with-cloudflare/)

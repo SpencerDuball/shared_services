@@ -1,15 +1,26 @@
+# NOTE: (tls-internal)
+# The public TLS certificate is between Cloudflare and my end users, the `tls internal`
+# means Caddyserver does not validate the Cloudflare certificate for HTTPS traffic
+# between this server and Cloudflare.
+#
+# See this blog for more info: https://samjmck.com/en/blog/using-caddy-with-cloudflare/
+
+# Only used for healthchecks internally.
 http://localhost:2019 {
     respond /healthcheck "OK" 200
 }
 
-http://localhost:9000, http://192.168.4.75:9000 {
+# Load balance traffic for internal services with "http://caddy.9000", and load balance
+# traffic for external services with "files.spencerduball.com".
+http://caddy:9000 files.spencerduball.com {
+    tls internal # see note above
     reverse_proxy minio1:9000 minio2:9000 minio3:9000 minio4:9000 {
         lb_policy least_conn
     }
 }
 
-http://localhost:9001, http://192.168.4.75:9001 {
-    reverse_proxy minio1:9001 minio2:9001 minio3:9001 minio4:9001 {
-        lb_policy least_conn
-    }
+# Load balance for web traffic with "spencerduball.com"
+spencerduball.com {
+    tls internal # see note above
+    respond "Coming soon!" 200
 }
