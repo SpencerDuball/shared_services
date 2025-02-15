@@ -54,8 +54,8 @@ services:
       - minio_root_password
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
+      interval: 10s
+      timeout: 5s
       retries: 3
   minio2:
     hostname: minio2
@@ -84,8 +84,8 @@ services:
       - minio_root_password
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
+      interval: 10s
+      timeout: 5s
       retries: 3
   minio3:
     hostname: minio3
@@ -114,8 +114,8 @@ services:
       - minio_root_password
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
+      interval: 10s
+      timeout: 5s
       retries: 3
   minio4:
     hostname: minio4
@@ -176,6 +176,73 @@ services:
   # and metrics for the node and send the data to the appropriate sink (loki or mimir).
   # ------------------------------------------------------------------------------------
 
+  # Loki Service
+  loki_read:
+    image: grafana/loki:latest
+    command: "-config.file=/etc/loki/config.yaml -target=read"
+    configs:
+      - source: loki_config
+        target: /etc/loki/config.yaml
+    volumes:
+      - loki_read-{{.Task.Slot}}:/loki # Create volume based on task slot
+    deploy:
+      mode: replicated
+      replicas: 2
+      restart_policy:
+        condition: any
+        max_attempts: 5
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3100/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - shared_services
+
+  loki_write:
+    image: grafana/loki:latest
+    command: "-config.file=/etc/loki/config.yaml -target=write"
+    configs:
+      - source: loki_config
+        target: /etc/loki/config.yaml
+    volumes:
+      - loki_write-{{.Task.Slot}}:/loki # Create ephemeral volume based on task slot
+    deploy:
+      mode: replicated
+      replicas: 2
+      restart_policy:
+        condition: any
+        max_attempts: 5
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3100/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - shared_services
+
+  loki_backend:
+    image: grafana/loki:latest
+    command: "-config.file=/etc/loki/config.yaml -target=backend"
+    configs:
+      - source: loki_config
+        target: /etc/loki/config.yaml
+    volumes:
+      - loki_backend-{{.Task.Slot}}:/loki # Create ephemeral volume based on task slot
+    deploy:
+      mode: replicated
+      replicas: 2
+      restart_policy:
+        condition: any
+        max_attempts: 5
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3100/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - shared_services
+
   # ------------------------------------------------------------------------------------
   # Setup Reverse Proxy
   # ------------------------------------------------------------------------------------
@@ -212,11 +279,12 @@ services:
     healthcheck:
       test:
         ["CMD", "wget", "--spider", "-q", "http://localhost:2019/healthcheck"]
-      interval: 30s
-      timeout: 20s
+      interval: 10s
+      timeout: 5s
       retries: 3
 
 volumes:
+  # define distributed minio volumes
   minio1_data:
     driver: local
   minio2_data:
@@ -225,15 +293,32 @@ volumes:
     driver: local
   minio4_data:
     driver: local
+  # define caddy volumes
   caddy_data:
     driver: local
   caddy_config:
+    driver: local
+  # define grafana volumes for WAL persistence (per replica)
+  loki_read-1:
+    driver: local
+  loki_write-1:
+    driver: local
+  loki_backend-1:
+    driver: local
+  loki_read-2:
+    driver: local
+  loki_write-2:
+    driver: local
+  loki_backend-2:
     driver: local
 
 configs:
   caddyfile:
     external: true
     name: "shared_services.caddyfile.${CADDYFILE_VER}"
+  loki_config:
+    external: true
+    name: "shared_services.loki_config.${GRAFANA_VER}"
 
 networks:
   shared_services:
@@ -242,6 +327,7 @@ networks:
       encrypted: "true"
 
 secrets:
+  # define root user/password for minio
   minio_root_user:
     external: true
     name: "shared_services.minio_root_user.${MINIO_ROOT_VER}"

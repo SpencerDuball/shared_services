@@ -1,0 +1,54 @@
+# IMPORTANT: This config option defaults to "all" when not specified.
+# This option MUST be specified using a CLI flag for each of the individual targets deployed in this setup.
+# This config is intended to be deploying using the simple scalable deployment (SSD) and
+# can have "read", "write", or "backend" targets.
+#
+# Ex: `ENTRYPOINT: /usr/bin/loki -config.file=/etc/loki/config.yaml -target=read`
+
+# This is needed to support X-Scope-OrgID for multi-tenancy. The default is true, but we
+# are specifying this to be explicit as this is a shared Grafana stack.
+auth_enabled: true
+
+server:
+  http_listen_port: 3100 # Default Loki HTTP port
+  log_level: debug # TODO: Change log level to info for production
+
+# Memberlist for clustering: gossip-based membership protocol for finding and tracking nodes
+memberlist:
+  join_members: ["tasks.loki_read", "tasks.loki_write", "tasks.loki_backend"]
+
+common:
+  # Persistent storage for Loki's data and temporary files
+  path_prefix: "/loki"
+
+  ring:
+    kvstore:
+      store: memberlist # Use memberlist as key-value store for gossip protocol
+
+  storage:
+    s3:
+      endpoint: http://caddy:9000
+      insecure: true
+      bucketnames: loki-data
+      access_key_id: ${MINIO_GRAFANA_USER}
+      secret_access_key: ${MINIO_GRAFANA_PASSWORD}
+      s3forcepathstyle: true
+
+# Schema configuration: Stores logs and chunks in S3, with a specific version
+schema_config:
+  configs:
+    - from: 2025-02-07
+      object_store: s3
+      store: tsdb
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+compactor:
+  # Directory for compactor temporary files
+  working_directory: /loki/compactor
+
+analytics:
+  reporting_enabled: false
+# Optional: Enable alerting or telemetry features if needed
