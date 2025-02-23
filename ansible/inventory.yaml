@@ -1,0 +1,29 @@
+# The main sections are the control nodes and the worker nodes. We also specify the type
+# of node. This is helpful as each type (ex: "turing_rk1") may have a specific ISA and OS.
+control_turing_rk1:
+  vars:
+    ansible_user: ubuntu
+    ansible_python_interpreter: /usr/bin/python3
+  hosts:
+    node_01:
+      ansible_host: 192.168.4.75
+
+worker_turing_rk1:
+  vars:
+    ansible_user: ubuntu
+    ansible_python_interpreter: /usr/bin/python3
+  hosts:
+    node_02:
+      ansible_host: 192.168.4.76
+    node_03:
+      ansible_host: 192.168.4.78
+    node_04:
+      ansible_host: 192.168.4.77
+
+# define the metagroups
+control:
+  children:
+    control_turing_rk1:
+worker:
+  children:
+    worker_turing_rk1:
