@@ -1,8 +1,8 @@
 - name: Reset control nodes
   hosts:
-    - control_turing_rk1
-    # - worker_turing_rk1
+    - control
   become: true
   roles:
-    - role: down_standard_config
-    - role: down_ansible_user
+    # - role: down_standard_config
+    # - role: down_ansible_user
+    - role: down_k8s_control_node

@@ -1,4 +1,4 @@
-- name: Remove snap packages
+- name: Remove snap packages # noqa: syntax-check[unknown-module]
   ansible.builtin.snap:
     name:
       - yq

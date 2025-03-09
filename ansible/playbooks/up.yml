@@ -1,8 +1,8 @@
 - name: Setup control nodes
   hosts:
-    - control_turing_rk1
-    # - worker_turing_rk1
+    - control
   become: true
   roles:
-    - role: up_ansible_user
-    - role: up_standard_config
+    # - role: up_ansible_user
+    # - role: up_standard_config
+    - role: up_k8s_control_node

@@ -9,7 +9,7 @@
     state: present
     password_lock: true # Locks the password, preventing login with a password
 
-- name: Setup SSH key for the user "{{ up_ansible_user_username }}"
+- name: Setup SSH key for the user "{{ up_ansible_user_username }}" # noqa: syntax-check[unknown-module]
   ansible.posix.authorized_key:
     user: "{{ up_ansible_user_username }}"
     state: present

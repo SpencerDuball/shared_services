@@ -11,7 +11,7 @@
       - curl
     state: present
 
-- name: Install snap packages
+- name: Install snap packages # noqa: syntax-check[unknown-module]
   ansible.builtin.snap:
     name:
       - yq

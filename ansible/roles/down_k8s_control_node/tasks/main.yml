@@ -1,0 +1,41 @@
+- name: Deconfigure Kubernetes port rules for control+worker nodes
+  ansible.builtin.iptables:
+    chain: INPUT
+    destination_port: "{{ item.port }}"
+    protocol: tcp
+    jump: ACCEPT
+    comment: "{{ item.comment }}"
+    state: absent
+  with_items:
+    # control plane ports
+    - port: "6443"
+      comment: "For 'Kubernetes API server'"
+    - port: "2379:2380"
+      comment: "For 'etcd server client API'"
+    - port: "10259"
+      comment: "For 'kube-scheduler'"
+    - port: "10257"
+      comment: "For 'kube-controller-manager'"
+    # both control plane & worker node ports
+    - port: "10250"
+      comment: "For 'Kubelet API'"
+    # worker node ports
+    - port: "10256"
+      comment: "For 'kube-proxy'"
+    - port: "30000:32767"
+      comment: "For 'NodePort Services'"
+
+- name: Remove /etc/hosts entries
+  ansible.builtin.blockinfile:
+    path: /etc/hosts
+    prepend_newline: true
+    block: |
+      {% for host in groups['all'] %}
+      {{ hostvars[host]['ansible_host'] }} {{ host }}
+      {% endfor %}
+    append_newline: true
+    state: absent
+
+- name: Revert unique hostname "{{ inventory_hostname }}"
+  ansible.builtin.hostname:
+    name: "{{ bootstrap_user }}"

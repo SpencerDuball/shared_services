@@ -5,7 +5,7 @@ control_turing_rk1:
     bootstrap_user: ubuntu # used only to create the ansible user
     ansible_user: ansible
   hosts:
-    node_01:
+    node001:
       ansible_host: 192.168.4.75
 
 worker_turing_rk1:
@@ -13,11 +13,11 @@ worker_turing_rk1:
     bootstrap_user: ubuntu # used only to create the ansible user
     ansible_user: ansible
   hosts:
-    node_02:
+    node002:
       ansible_host: 192.168.4.76
-    node_03:
+    node003:
       ansible_host: 192.168.4.78
-    node_04:
+    node004:
       ansible_host: 192.168.4.77
 
 # define the metagroups
