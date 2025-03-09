@@ -1,3 +1,0 @@
-- include_tasks: essential.yaml
-# - include_tasks: ssh.yaml
-# - include_tasks: user.yaml

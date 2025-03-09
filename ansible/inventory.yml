@@ -2,16 +2,16 @@
 # of node. This is helpful as each type (ex: "turing_rk1") may have a specific ISA and OS.
 control_turing_rk1:
   vars:
-    ansible_user: ubuntu
-    ansible_python_interpreter: /usr/bin/python3
+    bootstrap_user: ubuntu # used only to create the ansible user
+    ansible_user: ansible
   hosts:
     node_01:
       ansible_host: 192.168.4.75
 
 worker_turing_rk1:
   vars:
-    ansible_user: ubuntu
-    ansible_python_interpreter: /usr/bin/python3
+    bootstrap_user: ubuntu # used only to create the ansible user
+    ansible_user: ansible
   hosts:
     node_02:
       ansible_host: 192.168.4.76

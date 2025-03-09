@@ -1,0 +1,33 @@
+- name: Update and upgrade packages
+  ansible.builtin.apt:
+    update_cache: true
+    upgrade: true
+
+- name: Install apt packages
+  ansible.builtin.apt:
+    name:
+      - vim
+      - jq
+      - curl
+    state: present
+
+- name: Install snap packages
+  ansible.builtin.snap:
+    name:
+      - yq
+    state: present
+
+- name: Harden SSH configuration
+  ansible.builtin.lineinfile:
+    dest: /etc/ssh/sshd_config
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    state: present
+    validate: "sshd -T -f %s"
+    mode: "0644"
+  with_items:
+    - regexp: "^#PasswordAuthentication yes"
+      line: "PasswordAuthentication no"
+    - regexp: "^#PermitRootLogin"
+      line: "PermitRootLogin no"
+  notify: Restart SSH daemon

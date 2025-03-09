@@ -1,0 +1,1 @@
+up_ansible_user_username: "{{ hostvars[inventory_hostname].ansible_user }}"

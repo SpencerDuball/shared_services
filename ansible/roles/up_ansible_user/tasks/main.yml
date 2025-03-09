@@ -1,0 +1,23 @@
+- name: Create the ansible user "{{ up_ansible_user_username }}"
+  ansible.builtin.user:
+    name: "{{ up_ansible_user_username }}"
+    groups:
+      - sudo
+    append: true
+    shell: /bin/bash
+    create_home: true
+    state: present
+    password_lock: true # Locks the password, preventing login with a password
+
+- name: Setup SSH key for the user "{{ up_ansible_user_username }}"
+  ansible.posix.authorized_key:
+    user: "{{ up_ansible_user_username }}"
+    state: present
+    key: "{{ up_ansible_user_authorized_key }}"
+
+- name: Enable passwordless sudo for "{{ up_ansible_user_username }}"
+  ansible.builtin.lineinfile:
+    dest: /etc/sudoers
+    regexp: "^%wheel"
+    line: "{{ up_ansible_user_username }} ALL=(ALL) NOPASSWD: ALL"
+    validate: "/usr/sbin/visudo -cf %s"

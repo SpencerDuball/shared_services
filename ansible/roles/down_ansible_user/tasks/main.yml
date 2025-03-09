@@ -1,0 +1,12 @@
+- name: Disable passwordless sudo for "{{ down_ansible_user_username }}"
+  ansible.builtin.lineinfile:
+    dest: /etc/sudoers
+    regexp: "^{{ down_ansible_user_username }} ALL="
+    state: absent
+    validate: "/usr/sbin/visudo -cf %s"
+
+- name: Remove the ansible user "{{ down_ansible_user_username }}"
+  ansible.builtin.user:
+    name: "{{ down_ansible_user_username }}"
+    state: absent
+    remove: true # Ensures that the user's home directory and files are removed

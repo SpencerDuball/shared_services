@@ -1,0 +1,2 @@
+up_ansible_user_authorized_key: "{{ authorized_keys.ansible_user }}"
+ansible_user: "{{ bootstrap_user }}"
